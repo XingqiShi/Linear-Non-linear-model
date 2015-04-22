@@ -1,0 +1,392 @@
+---
+title: "week3_homework"
+author: "Xingqi"
+date: "January 21, 2015"
+output: pdf_document
+---
+This project helps understanding properties and pitfalls of correlation as a measure of linear dependence and alternative measures more appropriate for non-linear dependence.
+This project is individual.
+
+##1. Description of the data
+Read the data and explore them.
+
+Data in the file Week3_Homework_Project_Data.csv contain observations of time during the day when people watch TV (are logged in to an internet site, active online, etc.) and their age.
+
+```{r}
+Age.Time.Sample<-read.csv(file="Week3_Homework_Project_Data.csv",header=TRUE,sep=",")
+Age.Time.Sample<-as.matrix(Age.Time.Sample)
+Age.Time.Sample[1:10,]
+```
+
+```{r}
+par(mfrow=c(1,1))
+plot(Age.Time.Sample)
+```
+
+```{r}
+plot(rank(Age.Time.Sample[,1])/length(Age.Time.Sample[,1]),rank(Age.Time.Sample[,2])/length(Age.Time.Sample[,1]))
+```
+
+```{r}
+c(cor(Age.Time.Sample)[1,2],cor(Age.Time.Sample)[1,2]^2)
+```
+
+```{r}
+hist(Age.Time.Sample[,1],main="Histogram of Age")
+```
+
+```{r}
+hist(Age.Time.Sample[,2],main="Histogram of Time")
+```
+
+**Interpret the initial observations:**
+
+1. What do you see on the scatterplot of Age vs. Time?
+
+**Answer:**
+**From the scatterplot of Age vs Time, there are two major clusters in the graph. One cluster is around Age 25 and Time 21. The other cluster is around Age 45 and Time 23. There are moderate positive correlation between overall Age and Time.**
+
+2. What does the empirical copula suggest?
+
+**Answer: Empirical copula is a scatterplot of rank normalized samples, which is used to analyze dependency pattern. Monotonically increasing transformation doesn't change empirical copula. The empirical copula suggest an estimated copula based on the ranking of dataset.**
+
+3. How significant is the amount of correlation?
+
+```{r}
+cor(Age.Time.Sample[,1],Age.Time.Sample[,2])
+cor.test(Age.Time.Sample[,1],Age.Time.Sample[,2])
+```
+
+**Answer: The Pearson's correlation coefficiency between Age and Time is 0.4359003, which means the higher value of age tend to correspond higher value of Time. Pearson's correlation coefficient is a measure of dependence. However, correlation does not imply causation. The amount of correlation coefficiency 0.4359003 is moderate. Using statistical test, this correlation has a very low p-value, which means this correlation is statistically significant.**
+
+4. What do you imply from the shapes of the histograms?
+
+**Answer: In the histogram of Age,there are two peaks. One peak is at age around 25 and the other one is around age 45. These observation may imply the age sample is mixture of more than one normal distribution. In the histogram of Time, the distribution is negative skewed. The peak of histogram is arounng 23. These observation may imply either the distribution is one single skewed distribution or the distribution is a mixture of more than one distribution. ** 
+
+##2. Clustering of the data.
+Find possible clusters in both variables.
+
+Use Mclust() from mclust to find clusters in the age component and time component.
+Define the Mclust object Age.Clusters and explore the components of it:
+
+```{r message=FALSE,warning=FALSE}
+library(mclust)
+```
+
+```{r}
+Age.Sample<- Age.Time.Sample[,1]
+Age.Clusters<-Mclust(Age.Sample, modelNames= "V")
+```
+
+
+```{r}
+names(Age.Clusters)
+```
+
+```{r}
+Age.Clusters$G
+```
+
+```{r}
+Age.Clusters$param
+```
+
+Use norMix() from nor1mix to analyze the mixed Gaussian models classified by Mclust().
+Define the object Classified.Mix.Model.Age using norMix() and plot the densities of the normal mix.
+
+
+```{r message=FALSE,warning=FALSE}
+library(nor1mix)
+```
+
+```{r}
+Classified.Mix.Model.Age <- norMix(mu =Age.Clusters$param$mean, 
+                                   sigma = sqrt(Age.Clusters$param$variance$sigmasq),
+                                   w=Age.Clusters$param$pro)
+```
+
+```{r}
+plot(Classified.Mix.Model.Age,xout=seq(from=10,to=60,by=.25),p.norm=TRUE,p.comp=TRUE)
+```
+
+Define the Mclust object Time.Clusters and explore the components of it:
+
+```{r}
+Time.Sample<- Age.Time.Sample[,2]
+Time.Clusters<-Mclust(Time.Sample, modelNames= "V")
+```
+
+
+```{r}
+names(Time.Clusters)
+Time.Clusters$param
+```
+
+You may need to force the number of mix components to be 2. Also force the variances of the mix to be different.
+
+```{r}
+Time.Clusters<-Mclust(Time.Sample, G=2,modelNames= "V")
+```
+
+```{r}
+names(Time.Clusters)
+```
+
+```{r}
+Time.Clusters$G
+```
+
+```{r}
+Time.Clusters$param
+```
+
+```{r}
+Time.Clusters.Parameters<-rbind(mu=Time.Clusters$param$mean,sigma=sqrt(Time.Clusters$param$variance$sigmasq),pro=Time.Clusters$param$pro)
+```
+
+Again, define the object Classified.Mix.Model.Time using norMix for analyzing the time component.
+
+Plot the densities of the mix.
+
+```{r}
+Classified.Mix.Model.Time <- norMix(mu =Time.Clusters$param$mean, 
+                                   sigma = sqrt(Time.Clusters$param$variance$sigmasq),
+                                   w=Time.Clusters$param$pro)
+```
+
+
+```{r}
+plot(Classified.Mix.Model.Time,xout=seq(from=18,to=26,by=.25),p.norm=TRUE,p.comp=TRUE)
+```
+
+##3.Separate the samples into clusters and explore their dependencies
+
+```{r}
+#separate samples and explore dependencies
+Age.Mixing.Sequence<-Age.Clusters$classification
+Age.25.Time.21.Mixing.Sequence<-((Age.Clusters$classification==1)&(Time.Clusters$classification==1))
+Age.25.Time.23.Mixing.Sequence<-((Age.Clusters$classification==1)&(Time.Clusters$classification==2))
+Age.45.Time.21.Mixing.Sequence<-((Age.Clusters$classification==2)&(Time.Clusters$classification==1))
+Age.45.Time.23.Mixing.Sequence<-((Age.Clusters$classification==2)&(Time.Clusters$classification==2))
+```
+
+```{r}
+Grouped.Data.Age.25.Time.21<-
+  Grouped.Data.Age.25.Time.23<-
+  Grouped.Data.Age.45.Time.21<-
+  Grouped.Data.Age.45.Time.23<-
+  cbind(Age=rep(NA,200),Time=rep(NA,200))
+```
+
+
+```{r}
+Grouped.Data.Age.25.Time.21[Age.25.Time.21.Mixing.Sequence,]<-
+  Age.Time.Sample[Age.25.Time.21.Mixing.Sequence,]
+Grouped.Data.Age.25.Time.23[Age.25.Time.23.Mixing.Sequence,]<-
+  Age.Time.Sample[Age.25.Time.23.Mixing.Sequence,]
+Grouped.Data.Age.45.Time.21[Age.45.Time.21.Mixing.Sequence,]<-
+  Age.Time.Sample[Age.45.Time.21.Mixing.Sequence,]
+Grouped.Data.Age.45.Time.23[Age.45.Time.23.Mixing.Sequence,]<-
+  Age.Time.Sample[Age.45.Time.23.Mixing.Sequence,]
+```
+
+```{r}
+matplot(Age.Time.Sample[,1],cbind(Grouped.Data.Age.25.Time.21[,2],
+                              Grouped.Data.Age.25.Time.23[,2],
+                              Grouped.Data.Age.45.Time.21[,2],
+                              Grouped.Data.Age.45.Time.23[,2]),
+        pch=16,xlab="Age",ylab="Time",
+        col=c('black','red', 'blue', 'green'))
+legend('topleft', c("Age.25.Time.21","Age.25.Time.23","Age.45.Time.21","Age.45.Time.23") , 
+   lty=1,lwd=3, col=c('black','red', 'blue', 'green'), bty='n', cex=.75)
+```
+
+Now we clearly see existance of clusters.
+
+```{r}
+cor(na.omit(Grouped.Data.Age.25.Time.21), method="pearson")[1,2]
+cor(na.omit(Grouped.Data.Age.25.Time.23), method="pearson")[1,2]
+cor(na.omit(Grouped.Data.Age.45.Time.21), method="pearson")[1,2]
+cor(na.omit(Grouped.Data.Age.45.Time.23), method="pearson")[1,2]
+
+```
+
+
+Interpret the results: what dependencies do you see on the chart?
+
+**Answer:**
+**After splitting the popultaion into four clusters, the dependencies between Age and time in each clusters are different. There are certain dependencies between Age and Time in Grouped.Data.Age.25.Time.23 and Grouped.Data.Age.45.Time.21. In contrast, no apparently dependencies can be observed in Grouped.Data.Age.25.Time.21. and Grouped.Data.Age.45.Time.23. These observations suggest that Age and Time are positively correlated to some extend in Grouped.Data.Age.25.Time.23 and Grouped.Data.Age.45.Time.21. From these, I can conclude that Age 25 group tend to watch TV at 23pm while Age 45 group tend to watch TV around 21pm. **
+
+Group the samples by age and by time and explore the dependencies within groups.
+
+Group by age.
+
+```{r}
+#Group by age
+Grouped.Data.Age.25<-cbind(Age=rep(NA,200),Time=rep(NA,200))
+Grouped.Data.Age.25[Age.Clusters$classification==1,]<-Age.Time.Sample[Age.Clusters$classification==1,]
+Grouped.Data.Age.45<-cbind(Age=rep(NA,200),Time=rep(NA,200))
+Grouped.Data.Age.45[Age.Clusters$classification==2,]<-Age.Time.Sample[Age.Clusters$classification==2,]
+plot(rank(na.omit(Grouped.Data.Age.25[,1]))/length(na.omit(Grouped.Data.Age.25[,1])),
+     rank(na.omit(Grouped.Data.Age.25[,2]))/length(na.omit(Grouped.Data.Age.25[,2])),
+     xlab="Age 25 Group: Age",ylab="Age 25 Group: Time")
+```
+
+```{r}
+cor(na.omit(Grouped.Data.Age.25),method="spearman")[1,2]
+```
+
+
+```{r}
+plot(rank(na.omit(Grouped.Data.Age.45[,1]))/length(na.omit(Grouped.Data.Age.45[,1])),
+     rank(na.omit(Grouped.Data.Age.45[,2]))/length(na.omit(Grouped.Data.Age.45[,2])),
+     xlab="Age 45 Group: Age",ylab="Age 45 Group: Time")
+```
+
+
+```{r}
+cor(na.omit(Grouped.Data.Age.45),method="spearman")[1,2]
+```
+
+Group by time
+
+```{r}
+#Group by Time
+Grouped.Data.Time.21<-cbind(Age=rep(NA,200),Time=rep(NA,200))
+Grouped.Data.Time.21[Time.Clusters$classification==1,]<-
+  Age.Time.Sample[Time.Clusters$classification==1,]
+Grouped.Data.Time.23<-cbind(Age=rep(NA,200),Time=rep(NA,200))
+Grouped.Data.Time.23[Time.Clusters$classification==2,]<-
+  Age.Time.Sample[Time.Clusters$classification==2,]
+plot(rank(na.omit(Grouped.Data.Time.21[,1]))/length(na.omit(Grouped.Data.Time.21[,1])),
+     rank(na.omit(Grouped.Data.Time.21[,2]))/length(na.omit(Grouped.Data.Time.21[,2])),
+     xlab="Time 21 Group: Age",ylab="Time 21 Group: Time")
+```
+
+```{r}
+cor(na.omit(Grouped.Data.Time.21),method="spearman")[1,2]
+```
+
+
+```{r}
+plot(rank(na.omit(Grouped.Data.Time.23[,1]))/length(na.omit(Grouped.Data.Time.23[,1])),
+     rank(na.omit(Grouped.Data.Time.23[,2]))/length(na.omit(Grouped.Data.Time.23[,2])),
+     xlab="Time 23 Group: Age",ylab="Time 23 Group: Time")
+```
+
+```{r}
+cor(na.omit(Grouped.Data.Time.23),method="spearman")[1,2]
+```
+
+**What do you conclude from the results grouped by age and by time?**
+
+**Answer: **
+**In groups by ages(Age 25 group and Age 45 group), there is nearly no correlation between age and time. The correlation coefficiency is very low, with values of 0.08611179 and -0.01128072. In contrast, there is certain correlation between age and time in groups by time (Time 21 group and Time 23 group). These correlations conclude that the dependencies of age and time in these two individual time groups. But it is impossible to make any interpretable conclusion based on these correlations. **
+
+
+Group by age and by time.
+
+```{r}
+#Group by Age and Time
+#Grouped.Data.Age.25.Time.21
+plot(rank(na.omit(Grouped.Data.Age.25.Time.21[,1]))/length(na.omit(Grouped.Data.Age.25.Time.21[,1])),
+     rank(na.omit(Grouped.Data.Age.25.Time.21[,2]))/length(na.omit(Grouped.Data.Age.25.Time.21[,2])),
+     xlab="Time 21 Group: Age",ylab="Time 21 Group: Time")
+```
+
+
+```{r}
+cor(na.omit(Grouped.Data.Age.25.Time.21),method="spearman")[1,2]
+```
+
+```{r}
+#Grouped.Data.Age.25.Time.23
+plot(rank(na.omit(Grouped.Data.Age.25.Time.23[,1]))/length(na.omit(Grouped.Data.Age.25.Time.23[,1])),
+     rank(na.omit(Grouped.Data.Age.25.Time.23[,2]))/length(na.omit(Grouped.Data.Age.25.Time.23[,2])),
+     xlab="Time 23 Group: Age",ylab="Time 23 Group: Time")
+```
+
+
+```{r}
+cor(na.omit(Grouped.Data.Age.25.Time.23),method="spearman")[1,2]
+```
+
+```{r}
+#Grouped.Data.Age.45.Time.21
+plot(rank(na.omit(Grouped.Data.Age.45.Time.21[,1]))/length(na.omit(Grouped.Data.Age.45.Time.21[,1])),
+     rank(na.omit(Grouped.Data.Age.45.Time.21[,2]))/length(na.omit(Grouped.Data.Age.45.Time.21[,2])),
+     xlab="Time 21 Group: Age",ylab="Time 21 Group: Time")
+```
+
+```{r}
+cor(na.omit(Grouped.Data.Age.45.Time.21),method="spearman")[1,2]
+```
+
+
+```{r}
+#Grouped.Data.Age.45.Time.23
+plot(rank(na.omit(Grouped.Data.Age.45.Time.23[,1]))/length(na.omit(Grouped.Data.Age.45.Time.23[,1])),
+     rank(na.omit(Grouped.Data.Age.45.Time.23[,2]))/length(na.omit(Grouped.Data.Age.45.Time.23[,2])),
+     xlab="Time 23 Group: Age",ylab="Time 23 Group: Time")
+```
+
+```{r}
+cor(na.omit(Grouped.Data.Age.45.Time.23),method="spearman")[1,2]
+```
+
+**Interpret the results of dependency analysis by age and time simultaneously.**
+
+**Answer: **
+**In the group of Age.25.Time.23, there is moderate Spearman correlation coefficiency (0.3176471), which demonstrates the dependency between Age and Time in this group. The correlation coefficiency with Spearman method is higher than the one above obtained by Pearson method. In the group of Age.45.Time.21, there is some negative correlation(with Spearman correlation coefficiency -0.1257331), which show negative dependency between Age and Time. The negative correlation with spearman method is better explain this data than above Pearson method.In the group of Age.25.Time.21 and Age.45.Time.23, the correlation coefficiency is low and there are nearly no apparently correlation. From these results, I can conclude that Age 25 tend to watch TV 23pm(later) and the Age 45 tend to watch TV earlier. **
+
+
+##Copula
+Use copula to fit Gaussian copula to the groups Age.25.Time.23 and Age.45.Time.21.
+Use normalCopula() to define the copula objects, then use fitCopula() to fit copulas. Use pobs() to create pseudo data that fitCopula() needs.
+Create the object Gaussian.Copula.Age.25.Time.23.fit of Gaussian copula fit to the group of age 25 and time 23 and explore it.
+
+```{r}
+library(copula)
+```
+
+```{r}
+
+param<-cor(na.omit(Grouped.Data.Age.25.Time.23),method="pearson")[1,2]
+Gaussian.Copula.Age.25.Time.23<-normalCopula(param,dim=2)
+Gaussian.Copula.Age.25.Time.23.fit<-fitCopula(Gaussian.Copula.Age.25.Time.23,
+                pobs(na.omit(Grouped.Data.Age.25.Time.23)),
+                method = "ml")
+```
+
+
+```{r}
+Gaussian.Copula.Age.25.Time.23.fit
+```
+
+```{r}
+pobs(na.omit(Grouped.Data.Age.25.Time.23),ties.method = "average")
+```
+
+Repeat the analysis for the group age 45 and time 21.
+
+```{r}
+
+param2<-cor(na.omit(Grouped.Data.Age.45.Time.21))[1,2]
+Gaussian.Copula.Age.45.Time.21<-normalCopula(param2,dim=2)
+Gaussian.Copula.Age.45.Time.21.fit<-fitCopula(Gaussian.Copula.Age.45.Time.21,
+                pobs(na.omit(Grouped.Data.Age.45.Time.21),ties.method = "average"),
+                method = "ml")
+```
+
+
+```{r}
+Gaussian.Copula.Age.45.Time.21.fit
+```
+
+**Compare the correlations of the parametric models for both groups with Spearman correlations estimated earlier**
+
+**The correlation coefficiency in the fitCopula output of Age.25.Time.23 group is 0.4412 and this value is statistically significant. This correlation coefficiency value is higher than the one Spearman correlation estimatd above. **
+
+**The correlation coefficiency of the fitCopula output in Age.45.Time.21 group is -0.2647.This correlation coefficiency value is more negative than the one Spearman correlation estimatd above.**
+
+**These results conclude that the dependency between age and time in these two groups are stronger using paramentric models than using Spearman correlations estimated above. There is positive dependency between age and time in Age.25.Time.23 group while there is negative dependency between age and time in Age.45.Time.21 group. I can conclude Age 25 group tend to watch TV at 23pm while Age 45 group tend to watch TV at 21pm.**

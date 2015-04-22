@@ -1,0 +1,199 @@
+---
+title: "linear_nonlinear_Week4_Xingqi"
+author: "Xingqi"
+date: "February 2, 2015"
+output: pdf_document
+---
+
+This assignment helps understanding binomial regression
+The assignment is due on the day of the next class at 11:59 pm.
+This assignment is individual
+
+1.Select an area of application, for example, biomedical studies, engineering, marketing, etc.
+For the selected area of application postulate a problem that could be solved using binomial regression. Think of the two versions of the experiment design: with prospective and retrospective sampling.
+
+2.It is recommended to postulate the problem with two predictors.
+
+3.Find or simulate data for the model.
+
+4.Analize the use of the three different link functions and compare them to each other.
+
+5.Conduct the fit of binomial regression model using glm() with family=binomial.
+
+6.Describe the problem, all steps of obtaining solution and conclusions about the results.
+
+
+#1.Description: 
+
+Health risk of smoking is well known. The aim of this study is to determine whether smoking status and age are associated with increasing of death rates. In this study, I used a dataset containing adult males by smoking status, age classification and occurence of death during 2 year cohort study.  
+
+The variables present in the dataset are:  
+
+Smoking status: non-smoker, smoker
+
+Age classification: 1=50-54, 2=55-59, 3=60-64, 4=65-69 
+
+Number of Survival:  SurvivalNumber
+
+Number of Death: DeathNumber
+
+Source: E.C. Hammond and D. Horn (1954). "The Relationship Between Human Smoking Habits and Death Rates", JAMA, Aug. 7, 1954, pp1316-1328.
+
+For prospective sampling, the predictors are fixed and the outcome is observed. I would design the experiment to target groups of people (Smoker or non-smoker) with certain different age catergories and then follow up their death or survivals in two years.
+
+For retrospective sampling, the outcome is fixed and the predictors are observed. I would design the experiment to target some people with death or survivals and then collect their informtaion of their smoking status and age.
+        
+# 2.It is recommended to postulate the problem with two predictors.
+
+There are two predictors in this analysis, smoking status and age.
+
+# 3.Find or simulate data for the model.
+
+load the data
+
+```{r message=FALSE,warning=FALSE}
+library(lattice)
+library(faraway)
+```
+
+
+```{r}
+smokedata<-read.csv("smokedeath.csv",header=TRUE)
+smokedata
+xtabs(DeathNumber/(SurvivalNumber+DeathNumber)~Smoking.Status+Age.class,smokedata)
+```
+
+calculate the death.rates
+
+```{r}
+smokedata$death.rates<-(smokedata$DeathNumber)/(smokedata$SurvivalNumber+smokedata$DeathNumber)
+bwplot(death.rates~Age.class|Smoking.Status, data=smokedata)
+```
+
+Build a logit model using Smoking.status and Age.class as predictors and Death.rates as outcome.
+
+
+```{r}
+modl<-glm(cbind(DeathNumber,SurvivalNumber)~Smoking.Status+Age.class,
+          family=binomial,data=smokedata)
+summary(modl)
+```
+
+The intercept and slopes of smoking.status and Age.class are statistically significant in this model. I check the redidual deviance of this model to test for an interaction effect between smoking and age. A deviance 18.127 is not large for 5 degree of freedom comparing with null deviance. So I can conclude there is no apparent evidence of an interaction in these two predictors. I can interpret the main effect separately.
+
+
+```{r}
+drop1(modl,test="Chi")
+```
+
+drop1 function tests each predictor relative to the full. Both of these two predictors are significant.
+
+Next, I exmained the interpretation of the coefficient of smoking.status.
+
+```{r}
+exp(0.37446)
+```
+
+Smoking increase the death odds to 1.454206 of that for none smoking people. The confidence interval of this odds is as below.
+
+```{r}
+exp(c(0.37446 -1.96*0.03057,0.37446 +1.96*0.03057))
+```
+
+Next, I exmained the interpretation of the coefficient of age.class.
+
+```{r}
+exp(0.45077)
+exp(c(0.45077 -1.96*0.01382,0.45077 +1.96*0.01382))
+```
+
+One Unit increasing of Age.class increase the death odds to 1.56952 fold.
+
+The confidence intervals can be computed using original likelihood methods.
+
+```{r}
+exp(confint(modl))
+```
+
+
+#4.Analize the use of the three different link functions and compare them to each other.
+
+
+```{r}
+
+modp<-glm(cbind(DeathNumber,SurvivalNumber)~Smoking.Status+Age.class,family=binomial(link=probit),data=smokedata)
+modc<-glm(cbind(DeathNumber,SurvivalNumber)~Smoking.Status+Age.class,family=binomial(link=cloglog),data=smokedata)
+summary(modl)
+summary(modp)
+summary(modc)
+```
+
+The AIC values of these three models are very close. The residual deviance from these three models are all low.
+
+```{r}
+smokedatapred<-cbind(smokedata,fitted(modl),fitted(modp),fitted(modc));smokedatapred
+matplot(smokedatapred[,5:8],type='l')
+```
+
+The predictions from different links are very close. Next, I check the prediction difference in a larger range.
+
+
+```{r}
+x<-seq(-2,12,.2)
+x2<-seq(-2,12,.2)
+pl<-ilogit(modl$coef[1]+modl$coef[2]*x+modl$coef[3]*x2)
+pp<-pnorm(modp$coef[1]+modp$coef[2]*x+modl$coef[3]*x2)
+pc<-1-exp(-exp((modc$coef[1]+modc$coef[2]*x+modl$coef[3]*x2)))
+plot(x2,pl,type="l",ylab="Rates",xlab="Age")
+lines(x2,pp,lty=2,col="red")
+lines(x2,pc,lty=5,col="green")
+legend(x="topleft",
+       legend=c("pl", "pp","pc"),
+       col=c("black", "red","green"),
+       lty=c(1,2,5))
+```
+
+The above graph shows comparision of probit, logit and complementaty log-log compared.The black line shows logit fit. The probit is in red line. The complementary log-log is in a dashed green line. From the above graph, the difference between logit and complementary log-log is big at x2 value from 1 to 8. 
+
+As a comparision, the relative differences between different linkers are showed as below.
+
+```{r}
+matplot(x2,cbind(pp/pl,(1-pp)/(1-pl)),type="l",xlab="Age",ylab="Ratio")
+```
+
+```{r}
+matplot(x2,cbind(pc/pl,(1-pc)/(1-pl)),type="l",xlab="Age",ylab="Ratio")
+```
+
+The difference of logit and probit is observed at the tails. The difference of logit and complementary log-log is also observed at the tails. It is so obvious using the dataset range in this analysis. 
+
+The default choice of this analysis is the logit link. It is simpler mathematics and easier to interpret the odds and easier to analysis retrospectively sampled data. 
+
+
+#5.Conduct the fit of binomial regression model using glm() with family=binomial.
+
+```{r}
+fitted(modl)
+predict(modl,type="response")
+```
+
+The fitted values and predict values are identical.
+
+Calculate Pearson Residuals and Compare with Deviance
+
+```{r}
+sum(residuals(modl,type="pearson")^2)
+```
+
+
+```{r}
+deviance(modl)
+```
+
+There is little difference between Pearson residuals and deviance.
+
+#6.Describe the problem, all steps of obtaining solution and conclusions about the results.
+
+From above analysis, the two predictors, smoking status and age class, are two important factors to determine the death rates. Binominal regression models with different links were built using the dataset and the logit link was chosen for the following analysis. The death rates are increased in smokers group comparing with non-smokers. The death rates are increased in aged groups. No obvious interaction was observed between smoking status and age.class. To reduce male death rates, the solutions would be quit smoking.
+
+

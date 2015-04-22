@@ -1,0 +1,229 @@
+---
+title: "week1_homework"
+author: "Xingqi"
+date: "January 12, 2015"
+output:
+  pdf_document: default
+---
+
+This project helps understanding the linear model as a particular case of generalized linear model.
+The project is due on the day of the second class, 11:59 pm.
+This project is individual.
+Assignment description
+Use the data from the file Week1_Homework_Project_Data.csv to estimate linear model with lm(). Analize summary() of the estimated linear model.
+
+```{r}
+Linear.Model.DataH<-read.csv(file="Week1_Homework_Project_Data.csv",header=TRUE,sep=",")
+Linear.Model.DataH[1:10,]
+```
+
+
+```{r}
+Linear.Model.Data.FrameH<-as.data.frame(Linear.Model.DataH)
+pairs(Linear.Model.Data.FrameH)
+
+```
+
+From the gragh, there is a lot of correlation between output and input1. There is certain correlation between output and input2. There is little correlation between output and input3.
+
+
+Estimate linear model using lm(). Analize the summary of the model: what can you tell from it?
+
+```{r}
+Linear.Model.Data.lm<-lm(Output~Input1+Input2+Input3,data=Linear.Model.DataH)
+names(Linear.Model.Data.lm)
+summary(Linear.Model.Data.lm)
+```
+
+**What can you tell about the data and the fit?**
+
+**From summary of Linear.Model.Data.lm, The model has a high r-squared value which means the model has a very good fit to the data. The value of intercept is stastically significant at 0.001 level. The slope of Input1 is 2.3842 (not close to 0) and is stastically significant at 0.05 level. The slopes of Input2 and Input3 are not stastically significant at 0.1 level. **
+
+By using any variables returned by lm() or summary(lm.fit) calculate the following characteristics of glm() that you would obtain if applied glm() to the same data.
+
+
+```{r}
+Returned.from.glm<-glm(Output~Input1+Input2+Input3,family=gaussian(link="identity"),
+                       data=Linear.Model.DataH)
+names(Returned.from.glm)
+summary(Returned.from.glm)
+```
+
+Calculate variables:
+
+1.'coefficients' (5%)
+2.'residuals' (5%)
+3.'fitted.values' (5%)
+4.'linear.predictors' (10%)
+5.'deviance' (25%)
+    1.Use 'deviance()' (10%)
+    2.Calculate deviance manually based on the definition given in the lecture (15%)
+6.Akaike Information Criterion 'aic' (25%)
+    1.Obtain it by using 'AIC()' (10%)
+    2.Calculate it manually using the definition given in the lecture. (15%)
+7.'y' (5%)
+8.'null.deviance' (10%)
+9.'dispersion'(10%)
+
+###1.Coefficients
+
+```{r}
+cbind(LM=Linear.Model.Data.lm$coefficients,GLM=Returned.from.glm$coefficients)
+```
+
+**The values of coefficients from lm and glm models are identical.**
+
+###2.Residuals
+
+Plot the residuals from both lm() and glm() and also check the deviations from one another like it is done below.
+
+```{r}
+matplot(1:length(Linear.Model.DataH[,1]),
+        cbind(Linear.Model.Data.lm$residuals,Returned.from.glm$residuals),
+        type="l",ylab="Residuals",xlab="Count")
+```
+
+**From the plot,the residuals from lm and glm are overlapping with each other.**
+
+Compare the two sets of residuals.
+
+```{r}
+cbind(LM=Linear.Model.Data.lm$residuals,GLM=Returned.from.glm$residuals)[1:10,]
+```
+
+Calculate the difference of residuals from lm and glm models.
+
+```{r}
+sum(abs(Linear.Model.Data.lm$residuals-Returned.from.glm$residuals)>.00000000001)
+```
+
+The maximum deviation in absolute value between the two vectors of residuals is not greater than 1e-11.
+
+We will later distinguish several definitions of residuals which will not be equivalent in case of generalized linear model. But for the case of Gaussian linear model they are the same:
+
+```{r}
+Different.Residuals<-cbind(Linear.Model.Data.lm$residuals,resid(Returned.from.glm,type="deviance"),
+                           resid(Returned.from.glm,type="pearson"),
+                           resid(Returned.from.glm,type="working"),
+                           resid(Returned.from.glm,type="response"),
+                           Returned.from.glm$residuals)
+Different.Residuals[1:10,]
+```
+
+calculate sums of absolute differences between all types of residuals and Linear.Model.Data.lm$residuals to see that they are practically idenical.
+
+```{r}
+apply(Different.Residuals[,-1],2,
+      function(column.vector) sum(abs(column.vector-Different.Residuals[,1])))
+```
+
+Sum of these different residuals are identical.
+
+###3. Fitted values.
+
+Check that in the case of Gaussian linear model there is no difference between the returned fitted values.
+
+```{r}
+cbind(fitted.LM=Linear.Model.Data.lm$fitted.values,fitted.GLM=Returned.from.glm$fitted.values)[1:10,]
+```
+
+```{r}
+matplot(1:length(Linear.Model.DataH[,1]),
+        cbind(Linear.Model.Data.lm$fitted.values,Returned.from.glm$fitted.values),
+        type="l",ylab="fitted values",xlab="Count")
+```
+
+**From the plot,the fitted values from lm and glm are overlapping with each other.**
+
+```{r}
+sum(abs(Linear.Model.Data.lm$fitted.values-Returned.from.glm$fitted.values))
+```
+
+**The sum of absolute difference between fitted values of lm and glm is 5.684675e-12, which is very low.**
+
+###4. Linear predictors
+
+```{r}
+matplot(1:length(Linear.Model.DataH[,1]),
+        cbind(Linear.Model.Data.lm$fitted.values,Returned.from.glm$linear.predictors),
+        type="l",ylab="fitted values or linear.predictors",xlab="Count")
+```
+
+**From the plot,the fitted values from lm and the linear predictors from glm are overlapping with each other.**
+
+```{r}
+sum(abs(Linear.Model.Data.lm$fitted.values-Returned.from.glm$linear.predictors))
+```
+
+**The values of Linear predictors from glm model are close to the fitted value in lm model. In the Returned.from.glm model, I used the link as 'link="identity"' and the dataset is Gaussian distribution, so the values of Linear predictors from glm model are close to the fitted value in lm model. It would not be same if the link is not identity or the dataset is in different distribution.**
+
+##5. Deviance
+
+####1.Use 'deviance()' 
+####2.Calculate deviance manually based on the definition given in the lecture
+
+Calculate deviance using deviance() and manually and compare with Linear.Model.Data.glm$deviance:
+
+```{r}
+c(From.GLM=Returned.from.glm$deviance,
+  Manually.Deviance=sum((Linear.Model.DataH[,1]-Linear.Model.Data.lm$fitted.values)^2),
+  Function.Deviance=deviance(Linear.Model.Data.lm))
+```
+
+**Deviances from the glm model, the sum of squared values of residuals (manually) in lm model and Linear.Model.Data.glm$deviance are equivalent.**
+
+##6. Akaike Information Criterion 'aic' (25%)
+    1.Obtain it by using 'AIC()' (10%)
+
+```{r}
+cbind(From.AIC.Function=AIC(Linear.Model.Data.lm),
+      AIC.From.glm=Returned.from.glm$aic)
+```
+
+    2.Calculate it manually using the definition given in the lecture. (15%)
+
+```{r}
+manually.AIC<- nrow(Linear.Model.DataH)*(log(2*pi)+1+
+                +log((sum(Linear.Model.Data.lm$residuals^2)/nrow(Linear.Model.DataH))))+
+                +((length(Returned.from.glm$coefficients)+1)*2)
+manually.AIC                                                                                                                                                                                                                                                                                                                               
+```
+
+The manually AIC is equal to the AIC function in glm model.
+
+
+##7.'y'
+
+```{r}
+sum(abs(Linear.Model.DataH[,1]-Returned.from.glm$y))
+```
+
+The output values in dataset are equal to the y function of glm model.
+
+##8.'null.deviance'
+
+Null deviance of glm() is the deviance of the null model, i.e. the model that has only intercept. Since deviance of glm() in case of family=gaussian(link="identity") is equivalent to SSE of lm() we need to estimate the null model.
+
+```{r}
+Linear.Model.Data.Null.lm<-lm(Output~1,data=Linear.Model.DataH)
+Linear.Model.Data.Null.lm.SSE<-sum(Linear.Model.Data.Null.lm$residuals^2)
+c(Null.SSE.lm=Linear.Model.Data.Null.lm.SSE,Null.Deviance.glm=Returned.from.glm$null.deviance)
+```
+
+**The SSE of null model is equal to the null.deviance function of glm model.**
+
+##9.'dispersion'
+
+Compare dispersion returned by glm() with sigma returned by lm() and var(Linear.Model.Data.lm$residuals)
+Explain observed similarities or differencies
+
+The dispersion is 1.530141 in Retured.from.glm model. The square of sigma value from lm function and var(Linear.Model.Data.lm$residuals) are summarized as below.
+
+```{r}
+
+cbind(Dispersion.glm=summary(Returned.from.glm)$dispersion, 
+      sigma.square.lm=(summary(Linear.Model.Data.lm)$sigma)^2,
+      var.residuals.lm=var(Linear.Model.Data.lm$residuals))
+```
+
+The dispersion of glm are equal to square of sigma value from lm model. These values are very close to variance of residuals in lm model.
